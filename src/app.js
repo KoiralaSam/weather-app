@@ -1,6 +1,8 @@
 const path = require("path");
 const express = require("express");
 const hbs = require("hbs");
+const forecast = require("./utils/forecast");
+const geocode = require("./utils/geocode");
 
 const app = express();
 
@@ -36,13 +38,47 @@ app.get("/help", (req, res) => {
   res.render("help", { title: "Help", name: "Samarpan Koirala" });
 });
 
-app.get("/weather", (req, res) => {
-  res.send({
-    location: "Monroe, Louisiana",
-    forecast: "Mostly sunny with a high of 85°F",
-  });
+app.get("/weather", async (req, res) => {
+  if (!req.query.address) {
+    return res.send({
+      error: "you must provide an address",
+    });
+  }
+  await geocode(
+    req.query.address,
+    async (error, { lattitude, longitude, location } = {}) => {
+      if (error) {
+        return res.send({
+          error: error,
+        });
+      }
+      await forecast(lattitude, longitude, (error, forecast) => {
+        if (error) {
+          return res.send({
+            error: error,
+          });
+        }
+        res.send({
+          address: req.query.address,
+          location,
+          forecast: `It is ${forecast.weather_descriptions[0]}. It is currently ${forecast.temperature} degrees out. There is a ${forecast.precip}% chance of rain.`,
+        });
+      });
+    }
+  );
 });
 
+app.get("/products", (req, res) => {
+  if (!req.query.search) {
+    return res.send({
+      error: "you must provide a search term",
+    });
+  }
+  console.log(req.query.search);
+  res.send({
+    products: [],
+  });
+});
 app.get("/help/*", (req, res) => {
   res.render("404", {
     title: "404",
